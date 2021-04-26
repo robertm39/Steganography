@@ -110,10 +110,6 @@ def bits_to_image(bits, width, height, depth):
     #Reshape the bits into the shape of an image
     im_arr = np.reshape(flat_bits, [width, height, depth])
     
-    # #Add the alpha dimension
-    # alpha = np.ones([width, height, 1])
-    # alpha *= 255
-    
     return im_arr
 
 def get_count_array(num_blocks, block_size):
@@ -141,7 +137,12 @@ def encode_message(image, message, block_size=64):
     #Expand the message bits to the same number of bits
     bits_per_block = round(math.log(block_size, 2))
     num_bits = num_blocks * bits_per_block
-    message_bits.extend([0] * (num_bits - len(message_bits)))
+    expansion = num_bits - len(message_bits)
+    
+    if expansion < 0:
+        print('Message too long')
+    
+    message_bits.extend([0] * (expansion))
     
     
     #Also combine the message bits into chunks
@@ -201,7 +202,8 @@ def decode_message(image, block_size=64):
     
     return bits
 
-def least_bit(im_arr):
+def least_bit(image):
+    im_arr = np.asarray(image)
     #Take modulus by 2 to get last bit
     new_im_arr = np.mod(im_arr, 2)
     
@@ -211,7 +213,7 @@ def least_bit(im_arr):
     #Magnify image for visibility
     new_im_arr[:, :, 0:3] *= 255
     
-    return new_im_arr
+    return Image.fromarray(new_im_arr)
 
 def decode_test():
     image = Image.open('images/encoded_doge_2.png')
@@ -222,19 +224,37 @@ def decode_test():
 
 def encode_test():
     image = Image.open('images/doge_2.png')
-    message = 'Testing 123'
-    # message = 'BBBBBBBBBBB'
-    # message = 'CCCCCCCCCCC'
-    # message = 'DDDDDDDDDDD'
+    message = 'February eight, eighteen-seventy-eight,\n'\
+              'South of Trout Creek, west of Cedar Lake,\n'\
+              'On the winding mountain trail,\n'\
+              'Of the North Pacific Union Rail,\n'\
+              'The snow arrived on time; the circus train was running late'
     
     image = encode_message(image, message)
     display(image)
     
     image.save('images/encoded_doge_2.png')
 
+def detection_test():
+    image = Image.open('images/mountain_2.png')
+    message = 'February eight, eighteen-seventy-eight,\n'\
+              'South of Trout Creek, west of Cedar Lake,\n'\
+              'On the winding mountain trail,\n'\
+              'Of the North Pacific Union Rail,\n'\
+              'The snow arrived on time; the circus train was running late'
+    
+    encoded = encode_message(image, message)
+    
+    display(image)
+    display(encoded)
+    display(least_bit(image))
+    
+    display(least_bit(encoded))
+
 def main():
-    encode_test()
-    decode_test()
+    # encode_test()
+    # decode_test()
+    detection_test()
 
 if __name__ == '__main__':
     main()
