@@ -215,6 +215,15 @@ def least_bit(image):
     
     return Image.fromarray(new_im_arr)
 
+def density(block_size, width=7):
+    
+    bits_per_block = round(math.log(block_size, 2))
+    letters_per_block = bits_per_block / width
+    
+    nums_per_pixel = 3
+    return nums_per_pixel * letters_per_block / block_size
+    
+
 def decode_test():
     image = Image.open('images/encoded_doge_2.png')
     
