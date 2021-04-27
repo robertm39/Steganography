@@ -43,13 +43,13 @@ def find_choice(choices, num_bits, target):
             return comb
     return None
 
-def get_num_successful(choices, num, max_target):
+def get_num_successful(choices, num, max_target, num_groups):
     possibilities = 0
     for i in range(max_target):
         if find_choice(choices, num, i) is not None:
             possibilities += 1
         else:
-            print(convert(i, 2, 6))
+            print(convert(i, 2, num_groups))
     return possibilities
 
 def works(choices, num, max_target):
@@ -58,14 +58,18 @@ def works(choices, num, max_target):
             return False
     return True
 
-block_bits = 4
+block_bits = 6
 
 block_size = 2 ** block_bits
 num_bits = 2
-num_groups = 6
+
+choices = math.comb(block_size, num_bits)
+num_groups = math.floor(math.log(choices, 2))
+
+# num_groups = 6
 
 choices = get_choices(block_size, num_bits, num_groups)
 print('')
-num_worked = get_num_successful(choices, num_bits, 2**num_groups)
+num_worked = get_num_successful(choices, num_bits, 2**num_groups, num_groups)
 num_failed = 2**num_groups - num_worked
 print('{} succeeded, {} failed'.format(num_worked, num_failed))
