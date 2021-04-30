@@ -70,12 +70,13 @@ def get_bits(num, width=6):
 def image_to_bits(im_arr, block_size):
     im, ih, depth = im_arr.shape
     num_pixels = im*ih
-    num_numbers = num_pixels * 3
+    num_numbers = num_pixels * (depth-1)
     num_blocks = num_numbers // block_size
     used_numbers = num_blocks * block_size
     
     #Ignore the alpha channel
-    without_alpha = im_arr[:, :, :3]
+    without_alpha = im_arr[:, :, :depth-1]
+    # print(without_alpha.shape)
     
     #Flatten the image
     flat = np.reshape(without_alpha, [num_numbers])
@@ -112,29 +113,24 @@ def bits_to_image(bits, width, height, depth):
     
     return im_arr
 
+def get_chunk_nums(im_bits, num_blocks, block_size):
+    """
+    Return the array with the XOR of the active bits in each block.
+    """
+    count = get_count_array(num_blocks, block_size)
+    prod = np.multiply(im_bits, count)
+    chunk_nums = np.bitwise_xor.reduce(prod, axis=1)
+    return chunk_nums
+
 def get_count_array(num_blocks, block_size):
+    """
+    Return the count array.
+    """
     count = np.arange(start=0, stop=block_size)
     count = np.stack([count]*num_blocks, axis=0)
     return count
 
-def encode_message(image, message, block_size=64):
-    """
-    Encode the message into the given image.
-    """
-    im_arr = np.asarray(image)
-    width, height, depth = im_arr.shape
-    depth -= 1
-    
-    im_bits = image_to_bits(im_arr, block_size=block_size)
-    num_blocks, _ = im_bits.shape
-    
-    count = get_count_array(num_blocks, block_size)
-    prod = np.multiply(im_bits, count)
-    chunk_nums = np.bitwise_xor.reduce(prod, axis=1)
-    # print(chunk_nums.shape)
-    
-    message_bits = str_to_bits(message)
-    #Expand the message bits to the same number of bits
+def expand_message_bits(message_bits, block_size, num_blocks):
     bits_per_block = round(math.log(block_size, 2))
     num_bits = num_blocks * bits_per_block
     expansion = num_bits - len(message_bits)
@@ -142,18 +138,44 @@ def encode_message(image, message, block_size=64):
     if expansion < 0:
         print('Message too long')
     
-    message_bits.extend([0] * (expansion))
+    message_bits = message_bits + ([0] * expansion)
+    return message_bits
+
+def encode_message(image, message, block_size=64):
+    """
+    Encode the message into the given image.
+    """
+    im_arr = np.asarray(image)
+    width, height, depth = im_arr.shape
     
+    #Ignore alpha channel
+    depth -= 1
+    
+    im_bits = image_to_bits(im_arr, block_size=block_size)
+    num_blocks, _ = im_bits.shape
+    
+    chunk_nums = get_chunk_nums(im_bits, num_blocks, block_size)
+    # count = get_count_array(num_blocks, block_size)
+    # prod = np.multiply(im_bits, count)
+    # chunk_nums = np.bitwise_xor.reduce(prod, axis=1)
+    
+    message_bits = str_to_bits(message)
+    # #Expand the message bits to the same number of bits
+    # num_bits = num_blocks * bits_per_block
+    # expansion = num_bits - len(message_bits)
+    
+    # if expansion < 0:
+    #     print('Message too long')
+    
+    # message_bits.extend([0] * (expansion))
+    message_bits = expand_message_bits(message_bits, block_size, num_blocks)
     
     #Also combine the message bits into chunks
+    bits_per_block = round(math.log(block_size, 2))
     message_nums = bits_to_nums(message_bits, width=bits_per_block)
     message_nums = np.array(message_nums)
-    # print(message_nums.shape)
-    # print(message_nums)
     
     diffs = np.bitwise_xor(chunk_nums, message_nums)
-    # print(diffs.shape)
-    # print(diffs)
     
     #I'm gonna do this the slow way for now
     #until I figure out the fast, numpy way
@@ -163,7 +185,7 @@ def encode_message(image, message, block_size=64):
         diff = diffs[i]
         im_bits[i, diff] = 1 - im_bits[i, diff]
     
-    #Now the bits have been 
+    #Now the bits have been changed,
     #Reshape them into an image and combine them with the given image
     message_image = bits_to_image(im_bits, width, height, depth)
     
@@ -261,9 +283,9 @@ def detection_test():
     display(least_bit(encoded))
 
 def main():
-    # encode_test()
-    # decode_test()
-    detection_test()
+    encode_test()
+    decode_test()
+    # detection_test()
 
 if __name__ == '__main__':
     main()

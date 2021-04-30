@@ -35,12 +35,13 @@ def get_choices(block_size, num_bits, num_groups):
 def find_choice(choices, num_bits, target):
     #Find a selection of numbers from choices
     #whose xor equals the target numbers
-    for comb in itertools.combinations_with_replacement(choices, num_bits):
-        result = 0
-        for num in comb:
-            result ^= num
-        if result == target:
-            return comb
+    for order in range(num_bits+1):
+        for comb in itertools.combinations_with_replacement(choices, order):
+            result = 0
+            for num in comb:
+                result ^= num
+            if result == target:
+                return comb
     return None
 
 def get_num_successful(choices, num, max_target, num_groups):
@@ -89,7 +90,7 @@ def get_num_overlaps(xors, bitstring, num_choices, found):
                 result += 1
     return result
 
-def make_bitstrings(string_len, num_strings, num_choices, i=2000):
+def make_bitstrings(string_len, num_strings, num_choices, i=5):
     """
     Construct a set of num_strings string_len long bitstrings
     such that for each string_len long bitstring,
@@ -107,7 +108,9 @@ def make_bitstrings(string_len, num_strings, num_choices, i=2000):
     #This should work as a base
     xors = {0: {(): 0}}
     
-    for _ in range(num_strings):
+    for i in range(num_strings):
+        print(i)
+        
         best_bitstring = random_bitstring(string_len)
         min_overlaps = get_num_overlaps(xors,
                                         best_bitstring,
@@ -154,37 +157,45 @@ def make_bitstrings(string_len, num_strings, num_choices, i=2000):
         
     return bitstrings, found
 
-block_bits = 6
+def test():
+    block_bits = 10
+    
+    block_size = 2 ** block_bits
+    num_bits = 2
+    
+    num_choices = math.comb(block_size, num_bits)
+    num_groups = math.floor(math.log(num_choices, 2))
+    
+    # num_groups = 6
+    
+    # choices = get_choices(block_size, num_bits, num_groups)
+    print('Block size: {}'.format(block_size))
+    choices, combs = make_bitstrings(num_groups, block_size, num_bits)
+    print('Found choices\n')
+    
+    num_worked = len(combs)
+    # other_num_worked = get_num_successful(choices, num_bits, 2**num_groups, num_groups)
+    num_failed = 2**num_groups - num_worked
+    print('{} succeeded, {} failed'.format(num_worked, num_failed))
+    # print('test: {}'.format(other_num_worked))
+    
+    save_filename = 'save_bitstrings.txt'
+    
+    if num_failed == 0:
+        with open(save_filename, 'w') as save_file:
+            for bitstring in choices:
+                save_file.write(convert(bitstring, 2, num_groups) + '\n')
+            save_file.write('\n')
+            
+            #Store the indices for fast retrieval
+            indices = {b:choices.index(b) for b in choices}
+            for target in sorted(list(combs)):
+                c_indices = list([indices[c] for c in combs[target]])
+                c_indices.sort()
+                save_file.write('{}: {}\n'.format(convert(target, 2, num_groups), c_indices))
 
-block_size = 2 ** block_bits
-num_bits = 2
+def main():
+    test()
 
-num_choices = math.comb(block_size, num_bits)
-num_groups = math.floor(math.log(num_choices, 2))
-
-# num_groups = 6
-
-# choices = get_choices(block_size, num_bits, num_groups)
-choices, combs = make_bitstrings(num_groups, block_size, num_bits)
-print('Found choices\n')
-
-num_worked = len(combs)
-# other_num_worked = get_num_successful(choices, num_bits, 2**num_groups, num_groups)
-num_failed = 2**num_groups - num_worked
-print('{} succeeded, {} failed'.format(num_worked, num_failed))
-# print('test: {}'.format(other_num_worked))
-
-save_filename = 'save_bitstrings.txt'
-
-if num_failed == 0:
-    with open(save_filename, 'w') as save_file:
-        for bitstring in choices:
-            save_file.write(convert(bitstring, 2, num_groups) + '\n')
-        save_file.write('\n')
-        
-        #Store the indices for fast retrieval
-        indices = {b:choices.index(b) for b in choices}
-        for target in sorted(list(combs)):
-            c_indices = list([indices[c] for c in combs[target]])
-            c_indices.sort()
-            save_file.write('{}: {}\n'.format(convert(target, 2, num_groups), c_indices))
+if __name__ == '__main__':
+    main()
