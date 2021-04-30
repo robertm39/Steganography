@@ -132,9 +132,9 @@ def expand_message_bits(message_bits, block_size, num_blocks):
     message_bits = message_bits + ([0] * expansion)
     return message_bits
 
-def encode_message(image, message, block_size=64):
+def encode_message(image, message_bits, block_size=64):
     """
-    Encode the message into the given image.
+    Encode the message bits into the given image.
     """
     im_arr = np.asarray(image)
     width, height, depth = im_arr.shape
@@ -147,7 +147,7 @@ def encode_message(image, message, block_size=64):
     
     chunk_nums = get_chunk_nums(im_bits, num_blocks, block_size)
     
-    message_bits = str_to_bits(message)
+    # message_bits = str_to_bits(message)
     
     # #Expand the message bits to the same number of bits
     message_bits = expand_message_bits(message_bits, block_size, num_blocks)
@@ -229,6 +229,11 @@ def decode_test():
     image = Image.open('images/encoded_doge_2.png')
     
     bits = decode_message(image)
+    with open('out_bits.txt', 'w') as file:
+        for bit in bits:
+            file.write(str(bit))
+        file.write('\n')
+    # print(bits)
     message = bits_to_str(bits)
     print(message)
 
@@ -240,7 +245,10 @@ def encode_test():
               'Of the North Pacific Union Rail,\n'\
               'The snow arrived on time; the circus train was running late'
     
-    image = encode_message(image, message)
+    message_bits = str_to_bits(message)
+    # print(message_bits)
+    
+    image = encode_message(image, message_bits)
     display(image)
     
     image.save('images/encoded_doge_2.png')
