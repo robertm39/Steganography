@@ -13,6 +13,15 @@ from IPython.display import display
 
 from PIL import Image
 
+#Conversion functions
+def str_to_bits(s, width=7):
+    result = list()
+    for char in s:
+        num = ord(char)
+        bits = get_bits(num, width=width)
+        result.extend(bits)
+    return result
+
 def bits_to_str(bits, width=7):
     """
     Convert a list of bits into a string.
@@ -28,6 +37,43 @@ def bits_to_str(bits, width=7):
         
     return ''.join(result)
 
+def image_to_bits(image, ignore_last_channel=True):
+    """
+    Convert an image into a 1-D array of bits.
+    """
+    im_arr = np.asarray(image)
+    w, h, d = im_arr.shape
+    
+    if ignore_last_channel:
+        #Get rid of the alpha channel
+        d -= 1
+        im_arr = im_arr[:, :, :d]
+    
+    #Flatten the image into a list of numbers
+    flattened = np.reshape(im_arr, w*h*d)
+    
+    into_bits = np.unpackbits(flattened)
+    
+    return into_bits
+
+def bits_to_image(bits, shape, add_last_channel=255):
+    """
+    Convert a 1-D array of bits into an image.
+    """
+    w, h, d = shape
+    
+    flat = np.packbits(bits)
+    im_arr = np.reshape(flat, [w, h, d])
+    
+    if add_last_channel is not None:
+        last_channel = np.ones([w, h, 1], dtype=np.uint8)
+        last_channel *= add_last_channel
+        im_arr = np.concatenate([im_arr, last_channel], axis=2)
+    
+    return Image.fromarray(im_arr)
+
+#End conversion functions
+
 def bits_to_nums(bits, width=6):
     """
     Convert a list of bits into a list of numbers.
@@ -41,14 +87,6 @@ def bits_to_nums(bits, width=6):
         result.append(num)
     return result
 
-def str_to_bits(s, width=7):
-    result = list()
-    for char in s:
-        num = ord(char)
-        bits = get_bits(num, width=width)
-        result.extend(bits)
-    return result
-
 def get_bits(num, width=6):
     """
     Return the bits in the number, from most significant to least.
@@ -59,7 +97,7 @@ def get_bits(num, width=6):
         num //= 2
     return result[::-1]
 
-def image_to_bits(im_arr, block_size):
+def image_to_blocks(im_arr, block_size):
     im, ih, depth = im_arr.shape
     num_pixels = im*ih
     num_numbers = num_pixels * (depth-1)
@@ -83,7 +121,7 @@ def image_to_bits(im_arr, block_size):
     
     return bits
 
-def bits_to_image(bits, width, height, depth):
+def blocks_to_image(bits, width, height, depth):
     """
     Convert the given bits to an image with values only in the least
     significant bits.
@@ -142,7 +180,7 @@ def encode_message(image, message_bits, block_size=64):
     #Ignore alpha channel
     depth -= 1
     
-    im_bits = image_to_bits(im_arr, block_size=block_size)
+    im_bits = image_to_blocks(im_arr, block_size=block_size)
     num_blocks, _ = im_bits.shape
     
     chunk_nums = get_chunk_nums(im_bits, num_blocks, block_size)
@@ -166,7 +204,7 @@ def encode_message(image, message_bits, block_size=64):
     
     #Now the bits have been changed,
     #Reshape them into an image and combine them with the given image
-    message_image = bits_to_image(im_bits, width, height, depth)
+    message_image = blocks_to_image(im_bits, width, height, depth)
     
     #Wipe out the low order bits
     im_arr = im_arr - np.mod(im_arr, 2)
@@ -185,7 +223,7 @@ def decode_message(image, block_size=64):
     """
     im_arr = np.asarray(image)
     
-    bits = image_to_bits(im_arr, block_size=block_size)
+    bits = image_to_blocks(im_arr, block_size=block_size)
     num_blocks, _ = bits.shape
     
     #The counting array
@@ -223,17 +261,11 @@ def density(block_size, width=7):
     
     nums_per_pixel = 3
     return nums_per_pixel * letters_per_block / block_size
-    
 
 def decode_test():
     image = Image.open('images/encoded_doge_2.png')
     
     bits = decode_message(image)
-    with open('out_bits.txt', 'w') as file:
-        for bit in bits:
-            file.write(str(bit))
-        file.write('\n')
-    # print(bits)
     message = bits_to_str(bits)
     print(message)
 
@@ -246,7 +278,6 @@ def encode_test():
               'The snow arrived on time; the circus train was running late'
     
     message_bits = str_to_bits(message)
-    # print(message_bits)
     
     image = encode_message(image, message_bits)
     display(image)
@@ -269,10 +300,22 @@ def detection_test():
     
     display(least_bit(encoded))
 
+def image_bits_conversion_test():
+    image = Image.open('images/doge_2.png')
+    w, h = image.size
+    shape = (w, h, 3)
+    
+    bits = image_to_bits(image)
+    new_image = bits_to_image(bits, shape)
+    
+    display(image)
+    display(new_image)
+
 def main():
-    encode_test()
-    decode_test()
+    # encode_test()
+    # decode_test()
     # detection_test()
+    image_bits_conversion_test()
 
 if __name__ == '__main__':
     main()
