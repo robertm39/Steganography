@@ -22,15 +22,10 @@ def bits_to_str(bits, width=7):
         chunk = list(bits[i:i+width])
         chunk = [str(i) for i in chunk]
         
-        #Reverse the order
-        chunk = chunk[::-1]
-        
         num = int(''.join(chunk), 2)
         
-        # print(num)
         result.append(chr(num))
-        # result.append(num)
-    # return result
+        
     return ''.join(result)
 
 def bits_to_nums(bits, width=6):
@@ -41,9 +36,6 @@ def bits_to_nums(bits, width=6):
     for i in range(0, len(bits), width):
         chunk = list(bits[i:i+width])
         chunk = [str(i) for i in chunk]
-        
-        #Reverse the order
-        chunk = chunk[::-1]
         
         num = int(''.join(chunk), 2)
         result.append(num)
@@ -59,13 +51,13 @@ def str_to_bits(s, width=7):
 
 def get_bits(num, width=6):
     """
-    Return the bits in the number, from least significant to most.
+    Return the bits in the number, from most significant to least.
     """
     result = list()
     for _ in range(width):
         result.append(num % 2)
         num //= 2
-    return result
+    return result[::-1]
 
 def image_to_bits(im_arr, block_size):
     im, ih, depth = im_arr.shape
@@ -76,7 +68,6 @@ def image_to_bits(im_arr, block_size):
     
     #Ignore the alpha channel
     without_alpha = im_arr[:, :, :depth-1]
-    # print(without_alpha.shape)
     
     #Flatten the image
     flat = np.reshape(without_alpha, [num_numbers])
@@ -155,19 +146,10 @@ def encode_message(image, message, block_size=64):
     num_blocks, _ = im_bits.shape
     
     chunk_nums = get_chunk_nums(im_bits, num_blocks, block_size)
-    # count = get_count_array(num_blocks, block_size)
-    # prod = np.multiply(im_bits, count)
-    # chunk_nums = np.bitwise_xor.reduce(prod, axis=1)
     
     message_bits = str_to_bits(message)
+    
     # #Expand the message bits to the same number of bits
-    # num_bits = num_blocks * bits_per_block
-    # expansion = num_bits - len(message_bits)
-    
-    # if expansion < 0:
-    #     print('Message too long')
-    
-    # message_bits.extend([0] * (expansion))
     message_bits = expand_message_bits(message_bits, block_size, num_blocks)
     
     #Also combine the message bits into chunks
@@ -176,9 +158,6 @@ def encode_message(image, message, block_size=64):
     message_nums = np.array(message_nums)
     
     diffs = np.bitwise_xor(chunk_nums, message_nums)
-    
-    #I'm gonna do this the slow way for now
-    #until I figure out the fast, numpy way
     
     #Twiddle the bits in im_bits to make the right output
     for i in range(num_blocks):
