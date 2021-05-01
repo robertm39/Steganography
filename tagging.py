@@ -21,20 +21,13 @@ import steganography as stega
 # If these bits have the right pattern,
 # it is almost certain that there is a message.
 #
-# The next bit specifies whether the tag is short format or long format.
-#
-# In short format,
-# the next 8 bits specify the type of the message
-# the next 56 bits specify the format of the message (length, dimensions, etc.)
-#
-# In long format,
-# The next 
+# Then there is one variable-length field to specify the type of the message
+# And a list of variable-length fields to specify the format.
 
 TYPE_STRING_TAG = 0
 TYPE_IMAGE_TAG = 1
 
 def convert_to_string(fields, bits):
-    # print(fields)
     length, width = [conv.bits_to_num(b) for b in fields]
     message = list()
     
@@ -65,7 +58,6 @@ def convert_from_string(string):
     m_type = TYPE_STRING_TAG
     length = len(string)
     width = math.ceil(math.log(max_ord, 2))
-    # print('Length: {}, Width: {}'.format(length, width))
     
     type_bits = write_field(m_type)
     field_bits = write_fields([length, width])
@@ -77,14 +69,33 @@ def convert_from_string(string):
     
     bits = type_bits
     bits.extend(field_bits)
-    # print('Tag bits:')
-    # print(bits)
     bits.extend(str_bits)
     
     return bits
-    
+
+#May be fragile
+def get_depth(image):
+    if image.mode == 'YCbCr':
+        return 3
+    if image.mode == 'RGBA': #The alpha channel is removed
+        return 3
+    return len(image.mode)
+
 def convert_from_image(image):
-    return [0] #No fields for now
+    w, h = image.size
+    d = get_depth(image)
+    a = image.mode == 'RGBA'
+    
+    m_type = TYPE_IMAGE_TAG
+    type_bits = write_field(m_type)
+    field_bits = write_fields([w, h, d, int(a)])
+    
+    image_bits = conv.image_to_bits(image, bool(a))
+    
+    bits = type_bits
+    bits.extend(field_bits)
+    bits.extend(image_bits)
+    return bits
 
 TO_BITS_CONVERTER_FROM_TYPE = {TYPE_STRING_TAG: convert_from_string,
                                TYPE_IMAGE_TAG: convert_from_image}
@@ -180,9 +191,7 @@ def write_fields(fields):
             bits.append(0)
         else:
             bits.append(1)
-        # print('Field: {}'.format(field))
         f_bits = write_field(field)
-        # print('Bits: {}'.format(f_bits))
         
         bits.extend(f_bits)
     return bits
@@ -200,8 +209,6 @@ def parse_message(bits):
         [[int]]: The format fields.
         [int]: The message bits, not including the tag.
     """
-    # print(bits[:64])
-    # print(CHECK_BITS)
     
     #Validate the message
     if not validate_message(bits):
@@ -212,7 +219,6 @@ def parse_message(bits):
     b_iter = iter(bits)
     
     m_format = conv.bits_to_num(read_field(b_iter))
-    # print('Format: {}'.format(m_format))
     
     fields = list()
     
@@ -220,7 +226,6 @@ def parse_message(bits):
         #We've come to the end of the list of fields
         if not next(b_iter):
             fields.append(read_field(b_iter))
-            # print('Num fields: {}'.format(len(fields)))
             return m_format, fields, list(b_iter)
         
         fields.append(read_field(b_iter))
