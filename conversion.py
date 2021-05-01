@@ -7,6 +7,20 @@ Created on Fri Apr 30 20:31:51 2021
 
 import numpy as np
 
+from PIL import Image
+
+def add_alpha(im_arr, value):
+    w, d, _ = im_arr.shape
+    alpha = np.ones([w, d, 1], dtype=np.uint8)
+    alpha *= value
+    
+    return np.concatenate([im_arr, alpha], axis=2)
+
+def bits_to_num(bits):
+    bits = [str(b) for b in bits]
+    
+    return int(''.join(bits), 2)
+
 def bits_to_nums(bits, width=6):
     """
     Convert a list of bits into a list of numbers.

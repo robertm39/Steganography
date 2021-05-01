@@ -13,6 +13,7 @@ from IPython.display import display
 from PIL import Image
 
 import conversion as conv
+import tagging
 
 def image_to_blocks(im_arr, block_size):
     im, ih, depth = im_arr.shape
@@ -80,7 +81,7 @@ def expand_message_bits(message_bits, block_size, num_blocks):
     expansion = num_bits - len(message_bits)
     
     if expansion < 0:
-        print('Message too long: {}'.format(len(message_bits)))
+        print('Message too long: {} - {}'.format(len(message_bits), num_bits))
         raise ValueError()
     
     message_bits = list(message_bits)
@@ -89,19 +90,14 @@ def expand_message_bits(message_bits, block_size, num_blocks):
 
 def remove_alpha(im_arr):
     _, _, d = im_arr.shape
-    return im_arr[:, :, d-1]
+    return im_arr[:, :, :d-1]
 
-def add_alpha(im_arr, value):
-    w, d, _ = im_arr.shape
-    alpha = np.ones([w, d, 1], dtype=np.uint8)
-    alpha *= value
-    
-    return np.concatenate([im_arr, alpha], axis=2)
-
-def encode_message(image, message_bits, block_size=64, has_alpha=True):
+def encode_message(image, message_bits, block_size=64):
     """
     Encode the message bits into the given image.
     """
+    has_alpha = image.mode == 'RGBA'
+    
     im_arr = np.asarray(image)
     width, height, depth = im_arr.shape
     
@@ -142,7 +138,7 @@ def encode_message(image, message_bits, block_size=64, has_alpha=True):
     
     # #Add alpha back in
     if has_alpha:
-        im_arr = add_alpha(im_arr, 255)
+        im_arr = conv.add_alpha(im_arr, 255)
     
     return Image.fromarray(im_arr)
 
@@ -151,6 +147,12 @@ def decode_message(image, block_size=64):
     Decode the message from the given image.
     """
     im_arr = np.asarray(image)
+    
+    has_alpha = image.mode == 'RGBA'
+    
+    #Ignore alpha channel
+    if has_alpha:
+        im_arr = remove_alpha(im_arr)
     
     bits = image_to_blocks(im_arr, block_size=block_size)
     num_blocks, _ = bits.shape
@@ -240,13 +242,20 @@ def image_bits_conversion_test():
     display(image)
     display(new_image)
 
+def string_bits_conversion_test():
+    message = 'In the suburbs I, I learned to drive'
+    str_bits = conv.str_to_bits(message, width=7)
+    new_message = conv.bits_to_str(str_bits, width=7)
+    print(message)
+    print(new_message)
+
 def encode_image():
     carrier = Image.open('images/secret/image_1.jpg')
     to_encode = Image.open('images/secret/stego_small.png')
     
     bits = conv.image_to_bits(to_encode, ignore_last_channel=True)
     
-    encoded = encode_message(carrier, bits, block_size=2**8, has_alpha=False)
+    encoded = encode_message(carrier, bits, block_size=2**8)
     encoded.save('images/secret/encoded_1.png')
 
 def decode_image():
@@ -260,14 +269,44 @@ def decode_image():
     image = conv.bits_to_image(bits, (64, 64, 3), add_last_channel=True)
     display(image)
 
+def encode_with_tag_test():
+    carrier = Image.open('images/doge_2.png')
+    display(carrier)
+    
+    message = 'In the suburbs I, I learned to drive'
+    # message = Image.open('images/secret/stego_small.png')
+    bits = tagging.to_bits_with_tag(message)
+    
+    # print(bits[40:70])
+    
+    encoded = encode_message(carrier, bits, block_size=2**8)
+    encoded.save('images/tag_test_1.png')
+
+def decode_with_tag_test():
+    encoded = Image.open('images/tag_test_1.png')
+    bits = decode_message(encoded, block_size=2**8)
+    
+    # print(bits[40:70])
+    
+    message = tagging.from_bits_with_tag(bits)
+    
+    if isinstance(message, str):
+        print(message)
+    elif isinstance(message, Image.Image):
+        display(message)
+
 def main():
     # encode_test()
     # decode_test()
     # detection_test()
     # image_bits_conversion_test()
+    # string_bits_conversion_test()
     
-    encode_image()
-    decode_image()
+    # encode_image()
+    # decode_image()
+    
+    encode_with_tag_test()
+    decode_with_tag_test()
 
 if __name__ == '__main__':
     main()
