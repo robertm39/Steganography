@@ -5,6 +5,31 @@ Created on Fri Apr 30 20:31:51 2021
 @author: rober
 """
 
+import numpy as np
+
+def bits_to_nums(bits, width=6):
+    """
+    Convert a list of bits into a list of numbers.
+    """
+    result = list()
+    for i in range(0, len(bits), width):
+        chunk = list(bits[i:i+width])
+        chunk = [str(i) for i in chunk]
+        
+        num = int(''.join(chunk), 2)
+        result.append(num)
+    return result
+
+def get_bits(num, width=6):
+    """
+    Return the bits in the number, from most significant to least.
+    """
+    result = list()
+    for _ in range(width):
+        result.append(num % 2)
+        num //= 2
+    return result[::-1]
+
 def str_to_bits(s, width=7):
     result = list()
     for char in s:

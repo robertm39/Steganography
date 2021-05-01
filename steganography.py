@@ -14,29 +14,6 @@ from PIL import Image
 
 import conversion as conv
 
-def bits_to_nums(bits, width=6):
-    """
-    Convert a list of bits into a list of numbers.
-    """
-    result = list()
-    for i in range(0, len(bits), width):
-        chunk = list(bits[i:i+width])
-        chunk = [str(i) for i in chunk]
-        
-        num = int(''.join(chunk), 2)
-        result.append(num)
-    return result
-
-def get_bits(num, width=6):
-    """
-    Return the bits in the number, from most significant to least.
-    """
-    result = list()
-    for _ in range(width):
-        result.append(num % 2)
-        num //= 2
-    return result[::-1]
-
 def image_to_blocks(im_arr, block_size):
     im, ih, depth = im_arr.shape
     num_pixels = im*ih
@@ -143,7 +120,7 @@ def encode_message(image, message_bits, block_size=64, has_alpha=True):
     
     #Also combine the message bits into chunks
     bits_per_block = round(math.log(block_size, 2))
-    message_nums = bits_to_nums(message_bits, width=bits_per_block)
+    message_nums = conv.bits_to_nums(message_bits, width=bits_per_block)
     message_nums = np.array(message_nums)
     
     diffs = np.bitwise_xor(chunk_nums, message_nums)
@@ -189,7 +166,7 @@ def decode_message(image, block_size=64):
     bits_per_block = round(math.log(block_size, 2))
     bits = list()
     for i in range(ors.shape[0]):
-        bits.extend(get_bits(ors[i], bits_per_block))
+        bits.extend(conv.get_bits(ors[i], bits_per_block))
     
     return bits
 
@@ -289,7 +266,7 @@ def main():
     # detection_test()
     # image_bits_conversion_test()
     
-    # encode_image()
+    encode_image()
     decode_image()
 
 if __name__ == '__main__':
