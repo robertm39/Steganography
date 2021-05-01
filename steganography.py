@@ -10,74 +10,9 @@ import math
 import numpy as np
 
 from IPython.display import display
-
 from PIL import Image
 
-#Conversion functions
-def str_to_bits(s, width=7):
-    result = list()
-    for char in s:
-        num = ord(char)
-        bits = get_bits(num, width=width)
-        result.extend(bits)
-    return result
-
-def bits_to_str(bits, width=7):
-    """
-    Convert a list of bits into a string.
-    """
-    result = list()
-    for i in range(0, len(bits), width):
-        chunk = list(bits[i:i+width])
-        chunk = [str(i) for i in chunk]
-        
-        num = int(''.join(chunk), 2)
-        
-        result.append(chr(num))
-        
-    return ''.join(result)
-
-def image_to_bits(image, ignore_last_channel=True):
-    """
-    Convert an image into a 1-D array of bits.
-    """
-    im_arr = np.asarray(image)
-    w, h, d = im_arr.shape
-    
-    if ignore_last_channel:
-        #Get rid of the alpha channel
-        d -= 1
-        im_arr = im_arr[:, :, :d]
-    
-    #Flatten the image into a list of numbers
-    flattened = np.reshape(im_arr, w*h*d)
-    
-    into_bits = np.unpackbits(flattened)
-    
-    return into_bits
-
-def bits_to_image(bits, shape, add_last_channel=True):
-    """
-    Convert a 1-D array of bits into an image.
-    """
-    w, h, d = shape
-    
-    # print(len(bits))
-    bits = np.array(bits)
-    flat = np.packbits(bits)
-    # print(flat.shape)
-    im_arr = np.reshape(flat, [w, h, d])
-    
-    if add_last_channel:
-        im_arr = add_alpha(im_arr, 255)
-    # if add_last_channel is not None:
-    #     last_channel = np.ones([w, h, 1], dtype=np.uint8)
-    #     last_channel *= add_last_channel
-    #     im_arr = np.concatenate([im_arr, last_channel], axis=2)
-    
-    return Image.fromarray(im_arr)
-
-#End conversion functions
+import conversion as conv
 
 def bits_to_nums(bits, width=6):
     """
@@ -104,16 +39,11 @@ def get_bits(num, width=6):
 
 def image_to_blocks(im_arr, block_size):
     im, ih, depth = im_arr.shape
-    # print('Shape:')
-    # print('{}, {}, {}'.format(im, ih, depth))
     num_pixels = im*ih
     
     num_numbers = num_pixels * depth
     num_blocks = num_numbers // block_size
     used_numbers = num_blocks * block_size
-    
-    # #Ignore the alpha channel
-    # without_alpha = im_arr[:, :, :depth-1]
     
     #Flatten the image
     flat = np.reshape(im_arr, [num_numbers])
@@ -170,7 +100,6 @@ def get_count_array(num_blocks, block_size):
 def expand_message_bits(message_bits, block_size, num_blocks):
     bits_per_block = round(math.log(block_size, 2))
     num_bits = num_blocks * bits_per_block
-    # print('{} blocks with {} bits each'.format(num_blocks, bits_per_block))
     expansion = num_bits - len(message_bits)
     
     if expansion < 0:
@@ -197,7 +126,6 @@ def encode_message(image, message_bits, block_size=64, has_alpha=True):
     Encode the message bits into the given image.
     """
     im_arr = np.asarray(image)
-    # print('im_arr.shape: {}'.format(im_arr.shape))
     width, height, depth = im_arr.shape
     
     #Ignore alpha channel
@@ -209,8 +137,6 @@ def encode_message(image, message_bits, block_size=64, has_alpha=True):
     num_blocks, _ = im_bits.shape
     
     chunk_nums = get_chunk_nums(im_bits, num_blocks, block_size)
-    
-    # message_bits = str_to_bits(message)
     
     # #Expand the message bits to the same number of bits
     message_bits = expand_message_bits(message_bits, block_size, num_blocks)
@@ -238,7 +164,6 @@ def encode_message(image, message_bits, block_size=64, has_alpha=True):
     im_arr[:, :, 0:depth] += message_image
     
     # #Add alpha back in
-    # im_arr[:, :, depth] = 255
     if has_alpha:
         im_arr = add_alpha(im_arr, 255)
     
@@ -293,7 +218,7 @@ def decode_test():
     image = Image.open('images/encoded_doge_2.png')
     
     bits = decode_message(image)
-    message = bits_to_str(bits)
+    message = conv.bits_to_str(bits)
     print(message)
 
 def encode_test():
@@ -304,7 +229,7 @@ def encode_test():
               'Of the North Pacific Union Rail,\n'\
               'The snow arrived on time; the circus train was running late'
     
-    message_bits = str_to_bits(message)
+    message_bits = conv.str_to_bits(message)
     
     image = encode_message(image, message_bits)
     display(image)
@@ -328,13 +253,12 @@ def detection_test():
     display(least_bit(encoded))
 
 def image_bits_conversion_test():
-    # image = Image.open('images/doge_2.png')
     image = Image.open('images/secret/stego_small.png')
     w, h = image.size
     shape = (w, h, 3)
     
-    bits = image_to_bits(image, ignore_last_channel=True)
-    new_image = bits_to_image(bits, shape, add_last_channel=True)
+    bits = conv.image_to_bits(image, ignore_last_channel=True)
+    new_image = conv.bits_to_image(bits, shape, add_last_channel=True)
     
     display(image)
     display(new_image)
@@ -343,11 +267,7 @@ def encode_image():
     carrier = Image.open('images/secret/image_1.jpg')
     to_encode = Image.open('images/secret/stego_small.png')
     
-    # print(to_encode.size)
-    # print(to_encode.mode)
-    
-    bits = image_to_bits(to_encode, ignore_last_channel=True)
-    # print(bits.shape)
+    bits = conv.image_to_bits(to_encode, ignore_last_channel=True)
     
     encoded = encode_message(carrier, bits, block_size=2**8, has_alpha=False)
     encoded.save('images/secret/encoded_1.png')
@@ -360,7 +280,7 @@ def decode_image():
     num_bits = 64*64*3*8
     bits = bits[:num_bits]
     
-    image = bits_to_image(bits, (64, 64, 3), add_last_channel=True)
+    image = conv.bits_to_image(bits, (64, 64, 3), add_last_channel=True)
     display(image)
 
 def main():
