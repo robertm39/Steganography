@@ -14,7 +14,12 @@ from PIL import Image
 import conversion as conv
 import steganography as stega
 
-#340,282,366,920,938,463,463,374,607,431,768,211,456
+# 340,282,366,920,938,463,463,374,607,431,768,211,456
+# Or around 340 undecillion numbers
+# with a roughly 3.3e-39 chance of a spurious match
+# or 0.0000000000000000000000000000000000000003314045800354739
+#
+# so I'm not going to bother with checking for spurious matches
 
 # A tag is a sequence of bits at the start of a hidden message
 # that describes the type and layout of the message.
@@ -233,7 +238,7 @@ def parse_message(bits):
         
         fields.append(read_field(b_iter))
 
-def decode_message(image, block_size):
+def decode_message(image, block_size=None):
     """
     Decode the message from the given image with the given block size.
     
@@ -244,6 +249,35 @@ def decode_message(image, block_size):
     Returns:
         The hidden message.
     """
+    if block_size is None:
+        w, h = image.size
+        d = 3 #An estimate
+        num_bits = w*h*d
+        
+        i = math.floor(math.log(num_bits, 2))
+        
+        # i = 1
+        while i >= 1:
+            #Keep going until the check bits match
+            #or the block size is bigger than the image
+            block_size = 2**i
+            # print('Block size: {}'.format(block_size))
+            try:
+                bits = stega.decode_message(image, block_size=block_size)
+                
+                m_type, fields, bits = parse_message(bits)
+                converter = FROM_BITS_CONVERTER_FROM_TYPE[m_type]
+                return converter(fields, bits)
+            
+            except ValueError:
+                i -= 1
+                continue
+            except CheckBitsError:
+                i -= 1
+                continue
+        
+        return converter(fields, bits)
+    
     bits = stega.decode_message(image, block_size=block_size)
     
     m_type, fields, bits = parse_message(bits)
@@ -251,7 +285,7 @@ def decode_message(image, block_size):
     
     return converter(fields, bits)
 
-def encode_message(carrier, message, block_size):
+def encode_message(carrier, message, block_size=None):
     m_type = None
     
     if isinstance(message, str):
@@ -265,5 +299,25 @@ def encode_message(carrier, message, block_size):
     
     bits = check_bits + rest_bits
     bits = np.array(bits, dtype=np.uint8)
+    
+    #If the block size is unspecified,
+    #choose the largest size that will work
+    if block_size is None:
+        w, h = carrier.size
+        d = get_depth(carrier)
+        num_bits = w*h*d
+        
+        num_message_bits = len(bits)
+        block_power = 1
+        prev_block_power = block_power
+        capacity = (num_bits // (2** block_power)) * block_power
+        
+        while capacity >= num_message_bits:
+            prev_block_power = block_power
+            block_power += 1
+            capacity = (num_bits // (2** block_power)) * block_power
+        
+        block_size = 2 ** prev_block_power
+    
     
     return stega.encode_message(carrier, bits, block_size=block_size)

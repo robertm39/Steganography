@@ -21,6 +21,10 @@ def image_to_blocks(im_arr, block_size):
     
     num_numbers = num_pixels * depth
     num_blocks = num_numbers // block_size
+    
+    if num_blocks <= 0:
+        raise ValueError('Block size too big')
+    
     used_numbers = num_blocks * block_size
     
     #Flatten the image
@@ -299,14 +303,14 @@ def new_encode_test():
     message = 'testing 水百合水百合水百合水百合水百合水百合'
     # message = Image.open('images/secret/stego_small.png')
     
-    encoded = tagging.encode_message(carrier, message, block_size=2**8)
+    encoded = tagging.encode_message(carrier, message)#, block_size=2**8)
     # display(encoded)
     encoded.save('images/secret/new_encoded_1.png')
 
 def new_decode_test():
     encoded = Image.open('images/secret/new_encoded_1.png')
     # display(encoded)
-    message = tagging.decode_message(encoded, block_size=2**8)
+    message = tagging.decode_message(encoded)#, block_size=2**8)
     if isinstance(message, str):
         print(message)
     elif isinstance(message, Image.Image):
