@@ -34,16 +34,17 @@ TYPE_STRING_TAG = 0
 TYPE_IMAGE_TAG = 1
 
 def convert_to_string(fields, bits):
-    width, length = [conv.bits_to_num(b) for b in fields]
+    # print(fields)
+    length, width = [conv.bits_to_num(b) for b in fields]
     message = list()
     
     for i in range(length):
         char_bits = bits[i*width:(i+1)*width]
-        char_num = conv.bit_to_num(char_bits)
+        char_num = conv.bits_to_num(char_bits)
         char = chr(char_num)
         message.append(char)
     
-    return message
+    return ''.join(message)
 
 def convert_to_image(fields, bits):
     w, h, d, a = [conv.bits_to_num(b) for b in fields]
@@ -60,9 +61,27 @@ FROM_BITS_CONVERTER_FROM_TYPE = {TYPE_STRING_TAG: convert_to_string,
 
 def convert_from_string(string):
     max_ord = max([ord(c) for c in string])
+    
+    m_type = TYPE_STRING_TAG
+    length = len(string)
     width = math.ceil(math.log(max_ord, 2))
+    # print('Length: {}, Width: {}'.format(length, width))
     
+    type_bits = write_field(m_type)
+    field_bits = write_fields([length, width])
     
+    str_bits = list()
+    for c in string:
+        c_bits = conv.get_bits(ord(c), width=width)
+        str_bits.extend(c_bits)    
+    
+    bits = type_bits
+    bits.extend(field_bits)
+    # print('Tag bits:')
+    # print(bits)
+    bits.extend(str_bits)
+    
+    return bits
     
 def convert_from_image(image):
     return [0] #No fields for now
@@ -90,7 +109,7 @@ def validate_message(bits):
     Returns:
         bool: Whether the message is a valid message.
     """
-    return bits[:NUM_CHECK_BITS] == CHECK_BITS
+    return bits[:NUM_CHECK_BITS] == list(CHECK_BITS)
 
 def read_field(i):
     """
@@ -155,14 +174,17 @@ def write_field(field):
 
 def write_fields(fields):
     bits = list()
-    for field, i in enumerate(fields):
+    for i, field in enumerate(fields):
         # The continuing bit
         if i == len(fields) - 1:
             bits.append(0)
         else:
             bits.append(1)
+        # print('Field: {}'.format(field))
+        f_bits = write_field(field)
+        # print('Bits: {}'.format(f_bits))
         
-        bits.extend(write_field(field))
+        bits.extend(f_bits)
     return bits
 
 def parse_message(bits):
@@ -178,6 +200,9 @@ def parse_message(bits):
         [[int]]: The format fields.
         [int]: The message bits, not including the tag.
     """
+    # print(bits[:64])
+    # print(CHECK_BITS)
+    
     #Validate the message
     if not validate_message(bits):
         raise CheckBitsError()
@@ -187,12 +212,15 @@ def parse_message(bits):
     b_iter = iter(bits)
     
     m_format = conv.bits_to_num(read_field(b_iter))
+    # print('Format: {}'.format(m_format))
     
     fields = list()
     
     while True:
         #We've come to the end of the list of fields
         if not next(b_iter):
+            fields.append(read_field(b_iter))
+            # print('Num fields: {}'.format(len(fields)))
             return m_format, fields, list(b_iter)
         
         fields.append(read_field(b_iter))

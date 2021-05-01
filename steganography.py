@@ -296,10 +296,16 @@ def new_encode_test():
     carrier = Image.open('images/doge_2.png')
     display(carrier)
     
-    message = 'testing 1 2 3 4 5'
+    message = 'testing 水百合水百合水百合水百合水百合水百合'
+    encoded = tagging.encode_message(carrier, message, block_size=2**8)
+    display(encoded)
+    encoded.save('images/secret/new_encoded_1.png')
 
 def new_decode_test():
-    pass
+    encoded = Image.open('images/secret/new_encoded_1.png')
+    display(encoded)
+    message = tagging.decode_message(encoded, block_size=2**8)
+    print(message)
 
 def main():
     # encode_test()
@@ -312,7 +318,10 @@ def main():
     # decode_image()
     
     # encode_with_tag()
-    decode_with_tag()
+    # decode_with_tag()
+    
+    new_encode_test()
+    new_decode_test()
 
 if __name__ == '__main__':
     main()
