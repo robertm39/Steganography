@@ -270,18 +270,19 @@ def decode_image():
     display(image)
 
 def encode_with_tag():
-    carrier = Image.open('images/doge_2.png')
+    carrier = Image.open('images/secret/big_1.jpg')
     display(carrier)
     
-    message = ''
+    # message = ''
+    message = Image.open('images/secret/small.png')
     
     bits = tagging.to_bits_with_tag(message)
     
     encoded = encode_message(carrier, bits, block_size=2**8)
-    encoded.save('images/tag_test_1.png')
+    encoded.save('images/secret/tagged_2.png')
 
 def decode_with_tag():
-    encoded = Image.open('images/tag_test_1.png')
+    encoded = Image.open('images/secret/tagged_2.png')
     bits = decode_message(encoded, block_size=2**8)
     
     message = tagging.from_bits_with_tag(bits)
@@ -290,6 +291,15 @@ def decode_with_tag():
         print(message)
     elif isinstance(message, Image.Image):
         display(message)
+
+def new_encode_test():
+    carrier = Image.open('images/doge_2.png')
+    display(carrier)
+    
+    message = 'testing 1 2 3 4 5'
+
+def new_decode_test():
+    pass
 
 def main():
     # encode_test()
@@ -301,8 +311,8 @@ def main():
     # encode_image()
     # decode_image()
     
-    encode_with_tag()
-    # decode_with_tag()
+    # encode_with_tag()
+    decode_with_tag()
 
 if __name__ == '__main__':
     main()

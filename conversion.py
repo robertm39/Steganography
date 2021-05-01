@@ -5,6 +5,8 @@ Created on Fri Apr 30 20:31:51 2021
 @author: rober
 """
 
+import math
+
 import numpy as np
 
 from PIL import Image
@@ -34,10 +36,26 @@ def bits_to_nums(bits, width=6):
         result.append(num)
     return result
 
-def get_bits(num, width=6):
+def get_width(num):
+    """
+    Return the number of bits needed to represent the number.
+    
+    Parameters:
+        num: The number whose width to measure.
+    
+    Return:
+        int: The width of the number in bits.
+    """
+    return math.ceil(math.log(num+1, 2))
+
+def get_bits(num, width=None):
     """
     Return the bits in the number, from most significant to least.
     """
+    if width is None:
+        width = get_width(num)
+    # print(width)
+    
     result = list()
     for _ in range(width):
         result.append(num % 2)
