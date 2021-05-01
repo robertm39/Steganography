@@ -269,24 +269,20 @@ def decode_image():
     image = conv.bits_to_image(bits, (64, 64, 3), add_last_channel=True)
     display(image)
 
-def encode_with_tag_test():
+def encode_with_tag():
     carrier = Image.open('images/doge_2.png')
     display(carrier)
     
-    message = 'In the suburbs I, I learned to drive'
-    # message = Image.open('images/secret/stego_small.png')
-    bits = tagging.to_bits_with_tag(message)
+    message = ''
     
-    # print(bits[40:70])
+    bits = tagging.to_bits_with_tag(message)
     
     encoded = encode_message(carrier, bits, block_size=2**8)
     encoded.save('images/tag_test_1.png')
 
-def decode_with_tag_test():
+def decode_with_tag():
     encoded = Image.open('images/tag_test_1.png')
     bits = decode_message(encoded, block_size=2**8)
-    
-    # print(bits[40:70])
     
     message = tagging.from_bits_with_tag(bits)
     
@@ -305,8 +301,8 @@ def main():
     # encode_image()
     # decode_image()
     
-    encode_with_tag_test()
-    decode_with_tag_test()
+    encode_with_tag()
+    # decode_with_tag()
 
 if __name__ == '__main__':
     main()
