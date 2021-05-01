@@ -56,19 +56,24 @@ def image_to_bits(image, ignore_last_channel=True):
     
     return into_bits
 
-def bits_to_image(bits, shape, add_last_channel=255):
+def bits_to_image(bits, shape, add_last_channel=True):
     """
     Convert a 1-D array of bits into an image.
     """
     w, h, d = shape
     
+    # print(len(bits))
+    bits = np.array(bits)
     flat = np.packbits(bits)
+    # print(flat.shape)
     im_arr = np.reshape(flat, [w, h, d])
     
-    if add_last_channel is not None:
-        last_channel = np.ones([w, h, 1], dtype=np.uint8)
-        last_channel *= add_last_channel
-        im_arr = np.concatenate([im_arr, last_channel], axis=2)
+    if add_last_channel:
+        im_arr = add_alpha(im_arr, 255)
+    # if add_last_channel is not None:
+    #     last_channel = np.ones([w, h, 1], dtype=np.uint8)
+    #     last_channel *= add_last_channel
+    #     im_arr = np.concatenate([im_arr, last_channel], axis=2)
     
     return Image.fromarray(im_arr)
 
@@ -99,16 +104,19 @@ def get_bits(num, width=6):
 
 def image_to_blocks(im_arr, block_size):
     im, ih, depth = im_arr.shape
+    # print('Shape:')
+    # print('{}, {}, {}'.format(im, ih, depth))
     num_pixels = im*ih
-    num_numbers = num_pixels * (depth-1)
+    
+    num_numbers = num_pixels * depth
     num_blocks = num_numbers // block_size
     used_numbers = num_blocks * block_size
     
-    #Ignore the alpha channel
-    without_alpha = im_arr[:, :, :depth-1]
+    # #Ignore the alpha channel
+    # without_alpha = im_arr[:, :, :depth-1]
     
     #Flatten the image
-    flat = np.reshape(without_alpha, [num_numbers])
+    flat = np.reshape(im_arr, [num_numbers])
     
     #Get rid of the unused bits
     truncated = flat[:used_numbers]
@@ -162,23 +170,40 @@ def get_count_array(num_blocks, block_size):
 def expand_message_bits(message_bits, block_size, num_blocks):
     bits_per_block = round(math.log(block_size, 2))
     num_bits = num_blocks * bits_per_block
+    # print('{} blocks with {} bits each'.format(num_blocks, bits_per_block))
     expansion = num_bits - len(message_bits)
     
     if expansion < 0:
-        print('Message too long')
+        print('Message too long: {}'.format(len(message_bits)))
+        raise ValueError()
     
+    message_bits = list(message_bits)
     message_bits = message_bits + ([0] * expansion)
     return message_bits
 
-def encode_message(image, message_bits, block_size=64):
+def remove_alpha(im_arr):
+    _, _, d = im_arr.shape
+    return im_arr[:, :, d-1]
+
+def add_alpha(im_arr, value):
+    w, d, _ = im_arr.shape
+    alpha = np.ones([w, d, 1], dtype=np.uint8)
+    alpha *= value
+    
+    return np.concatenate([im_arr, alpha], axis=2)
+
+def encode_message(image, message_bits, block_size=64, has_alpha=True):
     """
     Encode the message bits into the given image.
     """
     im_arr = np.asarray(image)
+    # print('im_arr.shape: {}'.format(im_arr.shape))
     width, height, depth = im_arr.shape
     
     #Ignore alpha channel
-    depth -= 1
+    if has_alpha:
+        depth -= 1
+        im_arr = remove_alpha(im_arr)
     
     im_bits = image_to_blocks(im_arr, block_size=block_size)
     num_blocks, _ = im_bits.shape
@@ -212,8 +237,10 @@ def encode_message(image, message_bits, block_size=64):
     #Add the new low order bits
     im_arr[:, :, 0:depth] += message_image
     
-    #Add alpha back in
-    im_arr[:, :, depth] = 255
+    # #Add alpha back in
+    # im_arr[:, :, depth] = 255
+    if has_alpha:
+        im_arr = add_alpha(im_arr, 255)
     
     return Image.fromarray(im_arr)
 
@@ -301,21 +328,49 @@ def detection_test():
     display(least_bit(encoded))
 
 def image_bits_conversion_test():
-    image = Image.open('images/doge_2.png')
+    # image = Image.open('images/doge_2.png')
+    image = Image.open('images/secret/stego_small.png')
     w, h = image.size
     shape = (w, h, 3)
     
-    bits = image_to_bits(image)
-    new_image = bits_to_image(bits, shape)
+    bits = image_to_bits(image, ignore_last_channel=True)
+    new_image = bits_to_image(bits, shape, add_last_channel=True)
     
     display(image)
     display(new_image)
+
+def encode_image():
+    carrier = Image.open('images/secret/image_1.jpg')
+    to_encode = Image.open('images/secret/stego_small.png')
+    
+    # print(to_encode.size)
+    # print(to_encode.mode)
+    
+    bits = image_to_bits(to_encode, ignore_last_channel=True)
+    # print(bits.shape)
+    
+    encoded = encode_message(carrier, bits, block_size=2**8, has_alpha=False)
+    encoded.save('images/secret/encoded_1.png')
+
+def decode_image():
+    encoded = Image.open('images/secret/encoded_1.png')
+    
+    bits = decode_message(encoded, block_size=2**8)
+    
+    num_bits = 64*64*3*8
+    bits = bits[:num_bits]
+    
+    image = bits_to_image(bits, (64, 64, 3), add_last_channel=True)
+    display(image)
 
 def main():
     # encode_test()
     # decode_test()
     # detection_test()
-    image_bits_conversion_test()
+    # image_bits_conversion_test()
+    
+    # encode_image()
+    decode_image()
 
 if __name__ == '__main__':
     main()
